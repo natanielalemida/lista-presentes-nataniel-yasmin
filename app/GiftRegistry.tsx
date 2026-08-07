@@ -652,11 +652,7 @@ export function GiftRegistry({
                       >
                         <small>Escolhidos</small>
                         <strong>
-                          {reserved === 0
-                            ? "0"
-                            : String(reserved).padStart(2, "0")}
-                          /
-                          {String(gift.quantity.total).padStart(2, "0")}
+                          {reserved}/{gift.quantity.total}
                         </strong>
                       </span>
                     )}
