@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BedDouble,
   Check,
+  Copy,
   Gift,
   Heart,
   MessageCircle,
@@ -60,6 +61,7 @@ const confirmedKey = (giftId: string) =>
   `nataniel-yasmin-confirmed:${giftId}`;
 const COLOSSIANS_3_17 =
   "Tudo o que fizerem, seja em palavra seja em ação, façam-no em nome do Senhor Jesus, dando por meio dele graças a Deus Pai.";
+const PIX_KEY = "ce.yasmin15@gmail.com";
 
 const filters: { label: string; value: Filter }[] = [
   { label: "Todos", value: "todos" },
@@ -683,6 +685,43 @@ export function GiftRegistry({
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className="pix-invitation" aria-labelledby="pix-title">
+          <div className="pix-invitation-icon" aria-hidden="true">
+            <Heart size={24} strokeWidth={1.4} />
+          </div>
+          <div className="pix-invitation-copy">
+            <p className="eyebrow">Se preferir presentear de outra forma</p>
+            <h2 id="pix-title">Um carinho também pode chegar por Pix</h2>
+            <p>
+              Se for mais confortável para você, ficaremos igualmente felizes
+              em receber sua contribuição para os sonhos do nosso novo lar.
+              Todo gesto será recebido com muito amor e gratidão.
+            </p>
+          </div>
+          <div className="pix-details">
+            <span>Chave Pix (e-mail)</span>
+            <strong>{PIX_KEY}</strong>
+            <p>
+              <b>Banco:</b> Nubank
+            </p>
+            <p>
+              <b>Titular:</b> Cilia Yasmin Oliveira Lima
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText(PIX_KEY)
+                  .then(() => setToast("Chave Pix copiada!"))
+                  .catch(() => setToast("Não foi possível copiar a chave Pix."));
+              }}
+            >
+              <Copy aria-hidden="true" size={16} strokeWidth={1.7} />
+              Copiar chave Pix
+            </button>
           </div>
         </section>
 

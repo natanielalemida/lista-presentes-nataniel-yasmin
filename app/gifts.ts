@@ -216,15 +216,14 @@ export const gifts: GiftItem[] = [
     imageAlt: "Jogo de cama branco e cinza com colcha e fronhas.",
   },
   {
-    id: "par-de-travesseiros",
+    id: "ferro-de-passar",
     category: "quarto",
-    name: "Travesseiro individual",
-    suggestedColor: "Branco",
-    colorSwatch: "linear-gradient(135deg, #ffffff, #e8e7e2)",
-    quantity: { total: 4, unit: "unidade" },
-    description:
-      "Para descansar bem e sonhar juntos com os próximos capítulos.",
-    image: "/gifts/par-de-travesseiros.webp",
-    imageAlt: "Travesseiros individuais sobrepostos.",
+    name: "Ferro de passar",
+    suggestedColor: "Preto ou prata",
+    colorSwatch: silverAndBlackSwatch,
+    quantity: { total: 1, unit: "unidade" },
+    description: "Para deixar cada detalhe do nosso novo lar bem cuidado.",
+    image: "/gifts/ferro-de-passar.jpeg",
+    imageAlt: "Ferro de passar preto e prata.",
   },
 ];

@@ -973,6 +973,86 @@ button:disabled {
   opacity: 0.48;
 }
 
+.pix-invitation {
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 28px;
+  grid-template-columns: auto minmax(0, 1fr) minmax(260px, 0.72fr);
+  margin: 0 auto 72px;
+  max-width: 1180px;
+  padding: 34px 38px;
+}
+
+.pix-invitation-icon {
+  align-items: center;
+  background: var(--forest);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.pix-invitation-copy h2 {
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 2.45rem);
+  font-weight: 600;
+  line-height: 1.05;
+  margin: 5px 0 10px;
+}
+
+.pix-invitation-copy > p:last-child,
+.pix-details p {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.pix-details {
+  border-left: 1px solid var(--line);
+  padding-left: 28px;
+}
+
+.pix-details > span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.pix-details > strong {
+  color: var(--forest);
+  display: block;
+  font-size: 0.78rem;
+  margin-bottom: 9px;
+  overflow-wrap: anywhere;
+}
+
+.pix-details button {
+  align-items: center;
+  background: var(--forest);
+  color: white;
+  display: flex;
+  font-size: 0.62rem;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  letter-spacing: 0.07em;
+  margin-top: 16px;
+  min-height: 44px;
+  padding: 0 18px;
+  text-transform: uppercase;
+  width: 100%;
+}
+
 .gratitude {
   align-items: center;
   background:
@@ -1760,6 +1840,18 @@ button:disabled {
 }
 
 @media (max-width: 980px) {
+  .pix-invitation {
+    grid-template-columns: auto 1fr;
+    margin-inline: 24px;
+  }
+
+  .pix-details {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    grid-column: 1 / -1;
+    padding: 24px 0 0;
+  }
+
   .hero {
     background-position: 52% center;
   }
@@ -1800,6 +1892,20 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  .pix-invitation {
+    display: block;
+    margin: 0 16px 56px;
+    padding: 30px 24px;
+  }
+
+  .pix-invitation-icon {
+    margin-bottom: 22px;
+  }
+
+  .pix-details {
+    margin-top: 24px;
+  }
+
   .faith-ribbon {
     gap: 8px;
     min-height: 44px;
