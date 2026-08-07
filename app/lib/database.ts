@@ -13,8 +13,8 @@ export function database() {
 export function ensureDatabaseSchema() {
   if (!schemaReady) {
     const sql = database();
-    schemaReady = Promise.all([
-      sql`
+    schemaReady = (async () => {
+      await sql`
         CREATE TABLE IF NOT EXISTS gift_claims (
           gift_id TEXT NOT NULL,
           slot INTEGER NOT NULL,
@@ -25,18 +25,18 @@ export function ensureDatabaseSchema() {
           PRIMARY KEY (gift_id, slot),
           UNIQUE (gift_id, reservation_id)
         )
-      `,
-      sql`
+      `;
+      await sql`
         CREATE TABLE IF NOT EXISTS admin_login_attempts (
           ip_key TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
-      `,
-      sql`
+      `;
+      await sql`
         CREATE INDEX IF NOT EXISTS admin_login_attempts_lookup
         ON admin_login_attempts (ip_key, created_at)
-      `,
-    ]).then(() => undefined);
+      `;
+    })();
   }
   return schemaReady;
 }
