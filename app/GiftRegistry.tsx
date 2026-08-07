@@ -604,6 +604,7 @@ export function GiftRegistry({
                 gift.category === "cozinha" ? UtensilsCrossed : BedDouble;
               const available =
                 availability[gift.id]?.available ?? gift.quantity.total;
+              const reserved = gift.quantity.total - available;
               const isOwned = ownedGiftIds.has(gift.id);
               const availabilityClass =
                 available <= 0
@@ -635,20 +636,27 @@ export function GiftRegistry({
                       sizes="(max-width: 760px) calc(100vw - 80px), (max-width: 980px) 42vw, (max-width: 1180px) 29vw, 270px"
                     />
                     {available <= 0 && (
-                      <span className="gift-unavailable-label" aria-hidden="true">
-                        Item indisponível
+                      <span
+                        className="gift-unavailable-label"
+                        id={`availability-${gift.id}`}
+                        role="status"
+                      >
+                        Não está mais disponível
                       </span>
                     )}
-                    <span
-                      className={`gift-quantity-badge ${availabilityClass}`}
-                      id={`availability-${gift.id}`}
-                      aria-live="polite"
-                    >
-                      <small>{available <= 0 ? "Esgotado" : "Disponíveis"}</small>
-                      <strong>
-                        {available}/{gift.quantity.total}
-                      </strong>
-                    </span>
+                    {available > 0 && (
+                      <span
+                        className={`gift-quantity-badge ${availabilityClass}`}
+                        id={`availability-${gift.id}`}
+                        aria-live="polite"
+                      >
+                        <small>Escolhidos</small>
+                        <strong>
+                          {String(reserved).padStart(2, "0")}/
+                          {String(gift.quantity.total).padStart(2, "0")}
+                        </strong>
+                      </span>
+                    )}
                   </div>
                   <div className="gift-card-copy">
                     <h3>{gift.name}</h3>
@@ -675,7 +683,7 @@ export function GiftRegistry({
                       {isOwned
                         ? "Compartilhar novamente"
                         : available <= 0
-                          ? "Item indisponível"
+                          ? "Não está mais disponível"
                           : "Quero presentear"}
                       {(available > 0 || isOwned) && (
                         <ArrowRight aria-hidden="true" size={18} strokeWidth={1.6} />
