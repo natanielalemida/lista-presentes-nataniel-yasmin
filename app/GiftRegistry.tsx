@@ -652,7 +652,10 @@ export function GiftRegistry({
                       >
                         <small>Escolhidos</small>
                         <strong>
-                          {String(reserved).padStart(2, "0")}/
+                          {String(reserved).padStart(
+                            gift.quantity.total === 1 ? 1 : 2,
+                            "0",
+                          )}/
                           {String(gift.quantity.total).padStart(2, "0")}
                         </strong>
                       </span>
@@ -716,7 +719,7 @@ export function GiftRegistry({
               <b>Banco:</b> Nubank
             </p>
             <p>
-              <b>Titular:</b> Cilia Yasmin Oliveira Lima
+              <b>Titular:</b> Cecilia Yasmin Oliveira Lima
             </p>
             <button
               type="button"
