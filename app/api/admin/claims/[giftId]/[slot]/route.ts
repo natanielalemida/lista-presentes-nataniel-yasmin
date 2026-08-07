@@ -1,10 +1,8 @@
-import { BlobPreconditionFailedError, del } from "@vercel/blob";
 import { getAdminDashboardData } from "../../../../../lib/adminClaims";
 import { isAdminAuthenticated } from "../../../../../lib/adminAuth";
 import {
   giftById,
-  listAllClaims,
-  readClaim,
+  removeAdminGiftClaim,
 } from "../../../../../lib/giftClaims";
 import { isSameOriginMutation } from "../../../../../lib/requestSecurity";
 
@@ -31,64 +29,29 @@ export async function DELETE(
   const { giftId, slot: rawSlot } = await context.params;
   const gift = giftById.get(giftId);
   const slot = Number(rawSlot);
-  if (
-    !gift ||
-    !Number.isInteger(slot) ||
-    slot < 1 ||
-    slot > gift.quantity.total
-  ) {
+  if (!gift || !Number.isInteger(slot) || slot < 1 || slot > gift.quantity.total) {
     return response({ error: "Reserva inválida." }, 400);
   }
 
-  let expectedReservationId: unknown;
+  let reservationId: unknown;
   try {
-    const body = (await request.json()) as { reservationId?: unknown };
-    expectedReservationId = body.reservationId;
+    reservationId = ((await request.json()) as { reservationId?: unknown }).reservationId;
   } catch {
     return response({ error: "Reserva inválida." }, 400);
   }
-
-  if (
-    typeof expectedReservationId !== "string" ||
-    expectedReservationId.length < 16 ||
-    expectedReservationId.length > 80
-  ) {
+  if (typeof reservationId !== "string" || reservationId.length < 16 || reservationId.length > 80) {
     return response({ error: "Reserva inválida." }, 400);
   }
 
-  const pathname = `gift-claims/${giftId}/slot-${slot}.json`;
-
   try {
-    const blobs = await listAllClaims(pathname);
-    const blob = blobs.find((item) => item.pathname === pathname);
-    if (!blob) return response({ error: "Esta reserva já foi removida." }, 404);
-
-    const currentClaim = await readClaim(blob.url);
-    if (!currentClaim) {
-      return response({ error: "Não foi possível validar esta reserva." }, 409);
-    }
-    if (currentClaim.reservationId !== expectedReservationId) {
+    const removed = await removeAdminGiftClaim(giftId, slot, reservationId);
+    if (!removed) {
       return response(
-        { error: "A reserva mudou. Atualize o painel e tente novamente." },
+        { error: "A reserva mudou ou já foi removida. Atualize o painel." },
         409,
       );
     }
-
-    try {
-      await del(blob.url, { ifMatch: blob.etag });
-    } catch (error) {
-      if (error instanceof BlobPreconditionFailedError) {
-        return response(
-          { error: "A reserva mudou. Atualize o painel e tente novamente." },
-          409,
-        );
-      }
-      throw error;
-    }
-    return response({
-      removed: true,
-      ...(await getAdminDashboardData()),
-    });
+    return response({ removed: true, ...(await getAdminDashboardData()) });
   } catch (error) {
     console.error("Unable to remove the admin claim", error);
     return response(

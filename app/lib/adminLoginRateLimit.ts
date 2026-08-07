@@ -1,9 +1,8 @@
 import "server-only";
 
-import { createHmac, randomUUID } from "node:crypto";
-import { del, list, put } from "@vercel/blob";
+import { createHmac } from "node:crypto";
+import { database, ensureDatabaseSchema } from "./database";
 
-const ATTEMPTS_PREFIX = "admin-login-attempts";
 const LOGIN_WINDOW_MS = 15 * 60 * 1_000;
 export const MAX_ADMIN_LOGIN_ATTEMPTS = 5;
 
@@ -13,48 +12,32 @@ function ipKey(ip: string) {
   return createHmac("sha256", secret).update(ip).digest("hex").slice(0, 32);
 }
 
-function attemptTimestamp(pathname: string) {
-  const filename = pathname.split("/").at(-1) ?? "";
-  const timestamp = Number(filename.split("-")[0]);
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
-async function attemptsForIp(ip: string) {
-  const prefix = `${ATTEMPTS_PREFIX}/${ipKey(ip)}/`;
-  const result = await list({ prefix, limit: 1_000 });
-  const cutoff = Date.now() - LOGIN_WINDOW_MS;
-  const expired = result.blobs.filter(
-    (blob) => attemptTimestamp(blob.pathname) < cutoff,
-  );
-
-  if (expired.length) {
-    await del(expired.map((blob) => blob.url));
-  }
-
-  return {
-    prefix,
-    current: result.blobs.filter(
-      (blob) => attemptTimestamp(blob.pathname) >= cutoff,
-    ),
-  };
+async function cleanExpiredAttempts() {
+  await ensureDatabaseSchema();
+  const sql = database();
+  const cutoff = new Date(Date.now() - LOGIN_WINDOW_MS).toISOString();
+  await sql`DELETE FROM admin_login_attempts WHERE created_at < ${cutoff}`;
 }
 
 export async function adminLoginIsRateLimited(ip: string) {
-  const { current } = await attemptsForIp(ip);
-  return current.length >= MAX_ADMIN_LOGIN_ATTEMPTS;
+  await cleanExpiredAttempts();
+  const sql = database();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM admin_login_attempts
+    WHERE ip_key = ${ipKey(ip)}
+  `;
+  return Number(rows[0]?.count ?? 0) >= MAX_ADMIN_LOGIN_ATTEMPTS;
 }
 
 export async function registerAdminLoginFailure(ip: string) {
-  const { prefix } = await attemptsForIp(ip);
-  const pathname = `${prefix}${Date.now()}-${randomUUID()}.json`;
-  await put(pathname, JSON.stringify({ createdAt: new Date().toISOString() }), {
-    access: "private",
-    addRandomSuffix: false,
-    contentType: "application/json",
-  });
+  await cleanExpiredAttempts();
+  const sql = database();
+  await sql`INSERT INTO admin_login_attempts (ip_key) VALUES (${ipKey(ip)})`;
 }
 
 export async function clearAdminLoginFailures(ip: string) {
-  const { current } = await attemptsForIp(ip);
-  if (current.length) await del(current.map((blob) => blob.url));
+  await ensureDatabaseSchema();
+  const sql = database();
+  await sql`DELETE FROM admin_login_attempts WHERE ip_key = ${ipKey(ip)}`;
 }

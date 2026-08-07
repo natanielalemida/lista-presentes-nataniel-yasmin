@@ -1,77 +1,119 @@
 import "server-only";
 
-import { get, list, type ListBlobResultBlob } from "@vercel/blob";
 import { gifts } from "../gifts";
+import { database, ensureDatabaseSchema } from "./database";
 
-export const CLAIMS_PREFIX = "gift-claims";
 export const giftById = new Map(gifts.map((gift) => [gift.id, gift]));
 
 export type GiftClaim = {
   giftId: string;
+  slot: number;
   reservationId: string;
   createdAt: string;
-  guestName?: string;
-  guestMessage?: string;
+  guestName: string;
+  guestMessage: string;
 };
 
-export async function listAllClaims(prefix = `${CLAIMS_PREFIX}/`) {
-  const blobs: ListBlobResultBlob[] = [];
-  let cursor: string | undefined;
+type ClaimRow = {
+  gift_id: string;
+  slot: number;
+  reservation_id: string;
+  created_at: Date | string;
+  guest_name: string;
+  guest_message: string;
+};
 
-  do {
-    const result = await list({ prefix, cursor, limit: 1_000 });
-    blobs.push(...result.blobs);
-    cursor = result.hasMore ? result.cursor : undefined;
-  } while (cursor);
-
-  return blobs;
+function toClaim(row: ClaimRow): GiftClaim {
+  return {
+    giftId: row.gift_id,
+    slot: row.slot,
+    reservationId: row.reservation_id,
+    createdAt: new Date(row.created_at).toISOString(),
+    guestName: row.guest_name,
+    guestMessage: row.guest_message,
+  };
 }
 
-export async function readClaim(
-  pathnameOrUrl: string,
-): Promise<GiftClaim | null> {
-  const result = await get(pathnameOrUrl, {
-    access: "private",
-    useCache: false,
-  });
-  if (!result?.stream) return null;
-
-  try {
-    const claim = JSON.parse(
-      await new Response(result.stream).text(),
-    ) as Partial<GiftClaim>;
-
-    if (
-      typeof claim.giftId !== "string" ||
-      typeof claim.reservationId !== "string" ||
-      typeof claim.createdAt !== "string"
-    ) {
-      return null;
-    }
-
-    return {
-      giftId: claim.giftId,
-      reservationId: claim.reservationId,
-      createdAt: claim.createdAt,
-      guestName:
-        typeof claim.guestName === "string" ? claim.guestName : undefined,
-      guestMessage:
-        typeof claim.guestMessage === "string" ? claim.guestMessage : undefined,
-    };
-  } catch {
-    return null;
-  }
+export async function listAllClaims(giftId?: string) {
+  await ensureDatabaseSchema();
+  const sql = database();
+  const rows = giftId
+    ? await sql`SELECT * FROM gift_claims WHERE gift_id = ${giftId} ORDER BY slot`
+    : await sql`SELECT * FROM gift_claims ORDER BY created_at DESC`;
+  return (rows as ClaimRow[]).map(toClaim);
 }
 
-export function availabilityFromClaims(blobs: ListBlobResultBlob[]) {
+export async function saveGiftClaim(
+  giftId: string,
+  total: number,
+  reservationId: string,
+  guestName: string,
+  guestMessage: string,
+) {
+  await ensureDatabaseSchema();
+  const sql = database();
+
+  const existing = await sql`
+    UPDATE gift_claims
+    SET guest_name = ${guestName}, guest_message = ${guestMessage}
+    WHERE gift_id = ${giftId} AND reservation_id = ${reservationId}
+    RETURNING *
+  `;
+  if (existing.length) return { claim: toClaim(existing[0] as ClaimRow), existed: true };
+
+  const inserted = await sql`
+    INSERT INTO gift_claims (
+      gift_id, slot, reservation_id, guest_name, guest_message
+    )
+    SELECT ${giftId}, candidate.slot, ${reservationId}, ${guestName}, ${guestMessage}
+    FROM generate_series(1, ${total}) AS candidate(slot)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM gift_claims
+      WHERE gift_id = ${giftId} AND slot = candidate.slot
+    )
+    ORDER BY candidate.slot
+    LIMIT 1
+    ON CONFLICT DO NOTHING
+    RETURNING *
+  `;
+  return inserted.length
+    ? { claim: toClaim(inserted[0] as ClaimRow), existed: false }
+    : null;
+}
+
+export async function removeGiftClaim(giftId: string, reservationId: string) {
+  await ensureDatabaseSchema();
+  const sql = database();
+  const rows = await sql`
+    DELETE FROM gift_claims
+    WHERE gift_id = ${giftId} AND reservation_id = ${reservationId}
+    RETURNING *
+  `;
+  return rows.length > 0;
+}
+
+export async function removeAdminGiftClaim(
+  giftId: string,
+  slot: number,
+  reservationId: string,
+) {
+  await ensureDatabaseSchema();
+  const sql = database();
+  const rows = await sql`
+    DELETE FROM gift_claims
+    WHERE gift_id = ${giftId} AND slot = ${slot}
+      AND reservation_id = ${reservationId}
+    RETURNING *
+  `;
+  return rows.length > 0;
+}
+
+export function availabilityFromClaims(claims: GiftClaim[]) {
   const reservedByGift = new Map<string, number>();
-
-  for (const blob of blobs) {
-    const parsed = parseClaimPathname(blob.pathname);
-    if (!parsed) continue;
+  for (const claim of claims) {
     reservedByGift.set(
-      parsed.giftId,
-      (reservedByGift.get(parsed.giftId) ?? 0) + 1,
+      claim.giftId,
+      (reservedByGift.get(claim.giftId) ?? 0) + 1,
     );
   }
 
@@ -81,7 +123,6 @@ export function availabilityFromClaims(blobs: ListBlobResultBlob[]) {
         gift.quantity.total,
         reservedByGift.get(gift.id) ?? 0,
       );
-
       return [
         gift.id,
         {
@@ -92,20 +133,4 @@ export function availabilityFromClaims(blobs: ListBlobResultBlob[]) {
       ];
     }),
   );
-}
-
-export function parseClaimPathname(pathname: string) {
-  const match = pathname.match(
-    /^gift-claims\/([a-z0-9-]+)\/slot-(\d+)\.json$/,
-  );
-  if (!match) return null;
-
-  const giftId = match[1];
-  const slot = Number(match[2]);
-  const gift = giftById.get(giftId);
-  if (!gift || !Number.isInteger(slot) || slot < 1 || slot > gift.quantity.total) {
-    return null;
-  }
-
-  return { giftId, slot, gift };
 }
